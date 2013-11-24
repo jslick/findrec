@@ -17,7 +17,7 @@ static struct Options
     std::string needle;
     MatchType   match_type;
 
-    Options() : match_type(Literal) {}
+    Options() : match_type(Expansion) {}
 } options;
 
 void print_usage(const char* progname)

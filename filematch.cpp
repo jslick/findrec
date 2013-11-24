@@ -5,11 +5,15 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 
+// A Matcher callback
+// Don't filter any files
 static bool match_tautology(const boost::filesystem::path& path)
 {
     return true;
 }
 
+// Matches filenames by basic expansions
+// Currently only the "*" expansion is supported
 static bool match_expansion(const std::regex& regex, const boost::filesystem::path& path)
 {
     using namespace std;
