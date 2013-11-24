@@ -1,7 +1,9 @@
 #include "filematch.h"
 
 #include <functional>
+#include <vector>
 #include <regex>
+#include <cassert>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 
@@ -40,7 +42,7 @@ static std::string escape_regex(std::string str)
     return str;
 }
 
-Matcher create_matcher(const std::string& needle, MatchType match_type)
+Matcher get_filename_matcher(const std::string& needle, MatchType match_type)
 {
     using namespace std;
     using namespace std::placeholders;
@@ -71,4 +73,39 @@ Matcher create_matcher(const std::string& needle, MatchType match_type)
     }
     else
         return match_tautology;
+}
+
+static Matcher get_filetype_matcher(MatchFileType match_file_type)
+{
+    Matcher matcher = [match_file_type](const boost::filesystem::path& path)->bool {
+        if (static_cast<int>(match_file_type & Directories) == 0 && is_directory(path))
+            return false;
+        if (static_cast<int>(match_file_type & Files) == 0 && is_directory(path) == false)
+            return false;
+        return true;
+    };
+    return matcher;
+}
+
+Matcher create_matcher(const std::string& needle, MatchType match_type, MatchFileType match_file_type)
+{
+    using namespace std;
+    using namespace std::placeholders;
+
+    vector<Matcher> filters;
+    filters.push_back(get_filename_matcher(needle, match_type));
+    filters.push_back(get_filetype_matcher(match_file_type));
+
+    function<bool(vector<Matcher>,const boost::filesystem::path&)> part_matcher = [](vector<Matcher> filters, const boost::filesystem::path& path)->bool {
+        for (size_t i = 0; i < filters.size(); i++)
+        {
+            Matcher matcher = filters.at(i);
+            assert(matcher);
+            bool matches = matcher(path);
+            if (!matches)
+                return false;
+        }
+        return true;
+    };
+    return std::bind(part_matcher, move(filters), _1);
 }

@@ -14,21 +14,28 @@ static struct Options
         InvalidArg  = -3,
     };
 
-    std::string needle;
-    MatchType   match_type;
+    std::string     needle;
+    MatchType       match_type;
+    MatchFileType   match_file_type;
 
-    Options() : match_type(Expansion) {}
+    Options()
+    : match_type(Expansion),
+      match_file_type((MatchFileType)(Directories | Files))
+    {}
 } options;
 
-void print_usage(const char* progname)
+static void print_usage(const char* progname)
 {
     printf("Usage:  %s [options] search_term\n", progname);
     printf( "\nOptions are:\n"
             "    --regex, -r    The search term is a regular expression.\n"
+            "    --directories, -d\n"
+            "                   Match only directories.\n"
+            "    --files, -f    Match only files that are not directories.\n"
             );
 }
 
-Options::StatusCode parse_args(int argc, char** argv)
+static Options::StatusCode parse_args(int argc, char** argv)
 {
     using namespace std;
 
@@ -46,6 +53,14 @@ Options::StatusCode parse_args(int argc, char** argv)
         else if (arg == "--regex" || arg == "-r")
         {
             options.match_type = Regex;
+        }
+        else if (arg == "--directories" || arg == "-d")
+        {
+            options.match_file_type = (MatchFileType)(options.match_file_type & ~Files);
+        }
+        else if (arg == "--files" || arg == "-f")
+        {
+            options.match_file_type = (MatchFileType)(options.match_file_type & ~Directories);
         }
         else if (is_long_opt)
         {
@@ -74,9 +89,11 @@ int main(int argc, char** argv)
         return rv;
 
     boost::filesystem::path root = ".";
-    find_files(root, create_matcher(options.needle, options.match_type), [](const boost::filesystem::path& path) {
+    Matcher matcher = create_matcher(options.needle, options.match_type, options.match_file_type);
+    auto printer = [](const boost::filesystem::path& path) {
         printf("%s\n", path.string().c_str());
-    });
+    };
+    find_files(root, matcher, printer);
 
     return 0;
 }
