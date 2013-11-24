@@ -23,6 +23,9 @@ static struct Options
 void print_usage(const char* progname)
 {
     printf("Usage:  %s [options] search_term\n", progname);
+    printf( "\nOptions are:\n"
+            "    --regex, -r    The search term is a regular expression.\n"
+            );
 }
 
 Options::StatusCode parse_args(int argc, char** argv)
@@ -39,6 +42,10 @@ Options::StatusCode parse_args(int argc, char** argv)
         {
             print_usage(argv[0]);
             return Options::EarlyExit;
+        }
+        else if (arg == "--regex" || arg == "-r")
+        {
+            options.match_type = Regex;
         }
         else if (is_long_opt)
         {

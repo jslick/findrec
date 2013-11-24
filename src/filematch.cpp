@@ -12,9 +12,8 @@ static bool match_tautology(const boost::filesystem::path& path)
     return true;
 }
 
-// Matches filenames by basic expansions
-// Currently only the "*" expansion is supported
-static bool match_expansion(const std::regex& regex, const boost::filesystem::path& path)
+// Matches filenames by regular expression
+static bool match_regex(const std::regex& regex, const boost::filesystem::path& path)
 {
     using namespace std;
 
@@ -49,11 +48,26 @@ Matcher create_matcher(const std::string& needle, MatchType match_type)
 
     if (needle.length())
     {
-        string expansion = escape_regex(needle);
-        boost::algorithm::replace_all(expansion, "\\*", ".*");
+        switch (match_type)
+        {
+        case Expansion:
+            {
+                string expansion = escape_regex(needle);
+                boost::algorithm::replace_all(expansion, "\\*", ".*");
 
-        regex needle_regex = regex(expansion, ECMAScript | icase);
-        return std::bind(&match_expansion, needle_regex, _1);
+                regex needle_regex = regex(expansion, ECMAScript | icase);
+                return std::bind(&match_regex, needle_regex, _1);
+            }
+
+        case Regex:
+            {
+                regex needle_regex = regex(needle, ECMAScript | icase);
+                return std::bind(&match_regex, needle_regex, _1);
+            }
+
+        default:
+            throw FindException("Match type not implemented");
+        }
     }
     else
         return match_tautology;
