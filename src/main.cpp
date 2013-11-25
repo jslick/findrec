@@ -2,7 +2,14 @@
 #include "filematch.h"
 
 #include <string>
+#include <vector>
+#include <cstdlib>
 #include <cstdio>
+#include <boost/utility/binary.hpp>
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+#  define IS_WINDOWS 1
+#endif
 
 static struct Options
 {
@@ -14,13 +21,24 @@ static struct Options
         InvalidArg  = -3,
     };
 
+    enum ExecMode
+    {
+        NoExec      = BOOST_BINARY(000),
+        ExecAll     = BOOST_BINARY(001),
+        ExecEach    = BOOST_BINARY(010),
+    };
+
     std::string     needle;
     MatchType       match_type;
     MatchFileType   match_file_type;
 
+    ExecMode        exec_mode;
+    std::vector<std::string> exec_command;
+
     Options()
     : match_type(Expansion),
-      match_file_type((MatchFileType)(Directories | Files))
+      match_file_type((MatchFileType)(Directories | Files)),
+      exec_mode(NoExec)
     {}
 } options;
 
@@ -32,6 +50,8 @@ static void print_usage(const char* progname)
             "    --directories, -d\n"
             "                   Match only directories.\n"
             "    --files, -f    Match only files that are not directories.\n"
+            "    --exec-all command\n"
+            "                   Execute a command with the matched files as arguments\n"
             );
 }
 
@@ -62,6 +82,22 @@ static Options::StatusCode parse_args(int argc, char** argv)
         {
             options.match_file_type = (MatchFileType)(options.match_file_type & ~Directories);
         }
+        else if (arg == "--exec-all")
+        {
+            options.exec_mode = Options::ExecAll;
+            if (i >= argc - 1)
+            {
+                fprintf(stderr, "Missing argument to %s\n", argv[i]);
+                return Options::MissingArg;
+            }
+            while (i < argc - 1)
+            {
+                string arg = argv[++i];
+                if (arg == "end")
+                    break;
+                options.exec_command.push_back(std::move(arg));
+            }
+        }
         else if (is_long_opt)
         {
             fprintf(stderr, "Unrecognized option:  %s\n", argv[i]);
@@ -82,18 +118,58 @@ static Options::StatusCode parse_args(int argc, char** argv)
     return Options::Success;
 }
 
+static void matched_plain_printer(const boost::filesystem::path& path)
+{
+    printf("%s\n", path.string().c_str());
+}
+
+static void matched_vector_pusher(std::vector<boost::filesystem::path>& matched_paths, const boost::filesystem::path& path)
+{
+    matched_paths.push_back(path);
+    matched_plain_printer(path);
+}
+
 int main(int argc, char** argv)
 {
+    using namespace std;
+    using namespace std::placeholders;
+
     Options::StatusCode rv = parse_args(argc, argv);
     if (rv)
         return rv;
 
     boost::filesystem::path root = ".";
     Matcher matcher = create_matcher(options.needle, options.match_type, options.match_file_type);
-    auto printer = [](const boost::filesystem::path& path) {
-        printf("%s\n", path.string().c_str());
-    };
-    find_files(root, matcher, printer);
+
+    // Figure out what callback to call on match
+    function<void(const boost::filesystem::path&)> match_callback = matched_plain_printer;
+    vector<boost::filesystem::path> matched_paths;
+    if (options.exec_mode == Options::ExecAll)
+        match_callback = std::bind(&matched_vector_pusher, std::ref(matched_paths), _1);
+
+    find_files(root, matcher, match_callback);
+
+    if (options.exec_mode == Options::ExecAll && options.exec_command.size() && matched_paths.size())
+    {
+        string command;
+        for (size_t i = 0; i < options.exec_command.size(); i++)
+        {
+            command += "\"" + options.exec_command.at(i) + "\" ";
+        }
+
+        for (size_t i = 0; i < matched_paths.size(); i++)
+        {
+            string absolute_path = boost::filesystem::canonical(matched_paths.at(i)).string();
+            command += " \"" + absolute_path + "\"";
+        }
+        #if IS_WINDOWS
+        command = "\"" + command + "\"";    // cmd gets really confused about spaces and quotations
+        #endif
+        #if 0
+        printf("Invoking:  %s\n", command.c_str());
+        #endif
+        system(command.c_str());
+    }
 
     return 0;
 }

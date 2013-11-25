@@ -6,6 +6,8 @@
 
 #include "findfiles.h"
 
+#include <boost/utility/binary.hpp>
+
 /** Different ways to match files */
 enum MatchType
 {
@@ -15,8 +17,8 @@ enum MatchType
 
 enum MatchFileType : int
 {
-    Directories     = 0x001,
-    Files           = 0x010,
+    Directories     = BOOST_BINARY(001),
+    Files           = BOOST_BINARY(010),
 };
 
 /**
