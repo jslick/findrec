@@ -1,16 +1,12 @@
-#cmake .. -DCMAKE_CXX_FLAGS=/MP -DBoost_INCLUDE_DIR=C:\Users\User\Documents\boost_1_55_0 -DBoost_LIBRARIES=C:\Users\User\Documents\boost_1_55_0\stage\lib
+#cmake ..\src\ -DCMAKE_CXX_FLAGS=/MP -DCMAKE_INCLUDE_PATH=C:\Users\User\Documents\boost_1_55_0 -DCMAKE_LIBRARY_PATH=C:\Users\User\Documents\lib
 
 cmake_minimum_required(VERSION 2.6)
 project(findrec)
 
-find_package(boost COMPONENTS filesystem REQUIRED)
-message(status "** Boost Include: ${Boost_INCLUDE_DIR}")
-message(status "** Boost Libraries: ${Boost_LIBRARY_DIRS}")
-message(status "** Boost Libraries: ${Boost_LIBRARIES}")
-
-#include_directories($(PROJECT_SOURCE_DIR))
-include_directories(${Boost_INCLUDE_DIRS})
-link_directories(${Boost_LIBRARY_DIRS})
+include_directories(${CMAKE_INCLUDE_PATH})
+link_directories(${CMAKE_LIBRARY_PATH})
+find_library(BOOST_SYSTEM "boost_system" REQUIRED)
+find_library(BOOST_FILESYSTEM "boost_filesystem" REQUIRED)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -26,3 +22,4 @@ add_executable(findrec
     findfiles.cpp
     filematch.cpp
 )
+target_link_libraries(findrec ${BOOST_SYSTEM} ${BOOST_FILESYSTEM})
