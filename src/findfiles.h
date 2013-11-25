@@ -26,13 +26,6 @@ private:
     std::string message;
 };
 
-/** Different ways to match files */
-enum MatchType
-{
-    Expansion,  /** Match by basic expansion (e.g. some*text) */
-    Regex,      /** Match by regular expression */
-};
-
 typedef std::function<bool(const boost::filesystem::path&)> Matcher;    /// Filters files
 typedef std::function<void(const boost::filesystem::path&)> Emitter;    /// Callback matched files
 

@@ -6,6 +6,13 @@
 
 #include "findfiles.h"
 
+/** Different ways to match files */
+enum MatchType
+{
+    Expansion,  /** Match by basic expansion (e.g. some*text) */
+    Regex,      /** Match by regular expression */
+};
+
 enum MatchFileType : int
 {
     Directories     = 0x001,
