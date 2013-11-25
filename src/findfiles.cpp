@@ -22,7 +22,7 @@ void find_files(const boost::filesystem::path& root, Matcher file_matcher, Emitt
 
     if (!exists(root))
     {
-        fprintf(stderr, "Path does not exist:  %s\n", root);
+        fprintf(stderr, "Path does not exist:  %s\n", root.string().c_str());
         throw FindException("path does not exist");
     }
 
