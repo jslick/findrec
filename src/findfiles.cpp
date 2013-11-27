@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2013 findrec developers
+ *
+ * See the file license.txt for copying permission.
+ */
+
 #include "findfiles.h"
 
 #include <cstdio>
