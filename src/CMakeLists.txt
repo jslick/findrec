@@ -5,8 +5,12 @@ project(findrec)
 
 include_directories(${CMAKE_INCLUDE_PATH})
 link_directories(${CMAKE_LIBRARY_PATH})
-find_library(BOOST_SYSTEM "boost_system" REQUIRED)
-find_library(BOOST_FILESYSTEM "boost_filesystem" REQUIRED)
+if(MSVC)
+    message("Is MSVC")
+else()
+    find_library(BOOST_SYSTEM "boost_system" REQUIRED)
+    find_library(BOOST_FILESYSTEM "boost_filesystem" REQUIRED)
+endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -22,4 +26,8 @@ add_executable(findrec
     findfiles.cpp
     filematch.cpp
 )
-target_link_libraries(findrec ${BOOST_SYSTEM} ${BOOST_FILESYSTEM})
+if(MSVC)
+    # Link to boost is automatic
+else()
+    target_link_libraries(findrec ${BOOST_SYSTEM} ${BOOST_FILESYSTEM})
+endif()
