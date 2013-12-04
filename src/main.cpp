@@ -57,7 +57,10 @@ static void print_usage(const char* progname)
             "                   Match only directories.\n"
             "    --files, -f    Match only files that are not directories.\n"
             "    --exec-all command\n"
-            "                   Execute a command with the matched files as arguments\n"
+            "                   Execute a command with the matched files as arguments.\n"
+            "                   Specify $* to specify where in the command matched paths\n"
+            "                   should be placed.  If omitted, they will be appended to the\n"
+            "                   end of the command.\n"
             );
 }
 
@@ -138,17 +141,33 @@ static void matched_vector_pusher(std::vector<boost::filesystem::path>& matched_
 // Create command from executable, params, and matched paths
 static std::string create_command(const std::vector<std::string>& exe_pieces, const std::vector<boost::filesystem::path>& paths)
 {
-    std::string command;
-    for (size_t i = 0; i < exe_pieces.size(); i++)
-    {
-        command += "\"" + exe_pieces.at(i) + "\" ";
-    }
+    using namespace std;
 
+    // Concatenate matched paths
+    string paths_param;
     for (size_t i = 0; i < paths.size(); i++)
     {
-        std::string absolute_path = boost::filesystem::canonical(paths.at(i)).string();
-        command += " \"" + absolute_path + "\"";
+        string absolute_path = boost::filesystem::canonical(paths.at(i)).string();
+        paths_param += " \"" + absolute_path + "\"";
     }
+
+    // Concatenate exec, params, and matched paths
+    string command;
+    bool contains_placement = false;
+    for (size_t i = 0; i < exe_pieces.size(); i++)
+    {
+        if (exe_pieces.at(i) == "$*")  // Look for placement parameter
+        {
+            contains_placement = true;
+            command += " " + paths_param;
+        }
+        else
+            command += " \"" + exe_pieces.at(i) + "\" ";
+    }
+    // If placement parameter is not specified, put the matched paths at the end
+    if (!contains_placement)
+        command += paths_param;
+
     #if IS_WINDOWS
     command = "\"" + command + "\"";    // cmd gets really confused about spaces and quotations
     #endif
@@ -178,6 +197,9 @@ int main(int argc, char** argv)
     if (options.exec_mode == Options::ExecAll && options.exec_command.size() && matched_paths.size())
     {
         const std::string command = create_command(options.exec_command, matched_paths);
+        #if 0
+        printf("Executing:\n%s\n", command.c_str());
+        #endif
         system(command.c_str());
     }
 
