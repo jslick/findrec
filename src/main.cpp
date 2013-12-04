@@ -135,6 +135,26 @@ static void matched_vector_pusher(std::vector<boost::filesystem::path>& matched_
     matched_plain_printer(path);
 }
 
+// Create command from executable, params, and matched paths
+static std::string create_command(const std::vector<std::string>& exe_pieces, const std::vector<boost::filesystem::path>& paths)
+{
+    std::string command;
+    for (size_t i = 0; i < exe_pieces.size(); i++)
+    {
+        command += "\"" + exe_pieces.at(i) + "\" ";
+    }
+
+    for (size_t i = 0; i < paths.size(); i++)
+    {
+        std::string absolute_path = boost::filesystem::canonical(paths.at(i)).string();
+        command += " \"" + absolute_path + "\"";
+    }
+    #if IS_WINDOWS
+    command = "\"" + command + "\"";    // cmd gets really confused about spaces and quotations
+    #endif
+    return command;
+}
+
 int main(int argc, char** argv)
 {
     using namespace std;
@@ -157,23 +177,7 @@ int main(int argc, char** argv)
 
     if (options.exec_mode == Options::ExecAll && options.exec_command.size() && matched_paths.size())
     {
-        string command;
-        for (size_t i = 0; i < options.exec_command.size(); i++)
-        {
-            command += "\"" + options.exec_command.at(i) + "\" ";
-        }
-
-        for (size_t i = 0; i < matched_paths.size(); i++)
-        {
-            string absolute_path = boost::filesystem::canonical(matched_paths.at(i)).string();
-            command += " \"" + absolute_path + "\"";
-        }
-        #if IS_WINDOWS
-        command = "\"" + command + "\"";    // cmd gets really confused about spaces and quotations
-        #endif
-        #if 0
-        printf("Invoking:  %s\n", command.c_str());
-        #endif
+        const std::string command = create_command(options.exec_command, matched_paths);
         system(command.c_str());
     }
 
