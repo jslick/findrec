@@ -1,0 +1,42 @@
+Build dependencies:
+ * C++11 compiler (minimum MSVC10)
+ * boost headers
+ * boost filesystem (implies dependency to boost system)
+ * CMake >= 2.6
+
+Build Boost for MSVC:
+ 1. bootstrap.bat
+ 2. bjam.exe --with-filesystem threading=multi link=static
+ 3. bjam.exe --with-filesystem threading=multi link=static runtime-link=static
+* By default, the debug build uses dynamic runtime linkage and the release
+  build uses static runtime linkage.  See CMakeLists.txt
+
+Build Boost for MinGW:
+ 1. bootstrap.bat mingw
+ 2. bjam.exe toolset=gcc --with-filesystem
+
+Build MSVC:
+ 1. cd /path/to/findrec
+ 2. mkdir build
+ 3. cd build
+ 4. "%programfiles(x86)%\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat"
+ 5. cmake ..\src\ -DCMAKE_CXX_FLAGS=/MP -DCMAKE_INCLUDE_PATH=C:\Users\User\Documents\boost_1_55_0 -DCMAKE_LIBRARY_PATH=C:\Users\User\Documents\boost_1_55_0\stage\lib
+ 6. msbuild findrec.vcxproj /p:configuration=Release
+* The /MP option is just to tell msbuild to build faster using parallel
+  compilation.  It is optional.
+
+Build MinGW:
+ 1. cd /path/to/findrec
+ 2. mkdir build
+ 3. cd build
+ 4. cmake ../src -G "MinGW Makefiles" -DCMAKE_INCLUDE_PATH=C:\Users\User\Documents\boost-mingw\boost_1_55_0\ -DCMAKE_LIBRARY_PATH=C:\Users\User\Documents\boost-mingw\boost_1_55_0\stage\lib
+ 5. mingw32-make.exe -j3
+* The -j3 option is to tell `make` to build faster using parallel compilation.
+  It is optional.
+
+Build Linux-GCC:
+ 1. cd /path/to/findrec
+ 2. [ -d build ] || mkdir build
+ 3. pushd build
+ 4. cmake ../src
+ 5. make -j$(nproc)
