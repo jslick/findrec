@@ -53,14 +53,23 @@ static void print_usage(const char* progname)
     printf("Usage:  %s [options] search_term\n", progname);
     printf( "\nOptions are:\n"
             "    --regex, -r    The search term is a regular expression.\n"
+            "\n"
             "    --directories, -d\n"
             "                   Match only directories.\n"
+            "\n"
             "    --files, -f    Match only files that are not directories.\n"
+            "\n"
             "    --exec-all command\n"
             "                   Execute a command with the matched files as arguments.\n"
             "                   Specify $* to specify where in the command matched paths\n"
             "                   should be placed.  If omitted, they will be appended to the\n"
             "                   end of the command.\n"
+            "\n"
+            "    --exec-each command\n"
+            "                   Execute a command for each matched file.\n"
+            "                   Specify $* or $1 to specify where in the command the\n"
+            "                   matched path should be placed.  If omitted, it will be\n"
+            "                   appended to the end of the command.\n"
             );
 }
 
@@ -94,6 +103,22 @@ static Options::StatusCode parse_args(int argc, char** argv)
         else if (arg == "--exec-all")
         {
             options.exec_mode = Options::ExecAll;
+            if (i >= argc - 1)
+            {
+                fprintf(stderr, "Missing argument to %s\n", argv[i]);
+                return Options::MissingArg;
+            }
+            while (i < argc - 1)
+            {
+                string arg = argv[++i];
+                if (arg == "end")
+                    break;
+                options.exec_command.push_back(std::move(arg));
+            }
+        }
+        else if (arg == "--exec-each")
+        {
+            options.exec_mode = Options::ExecEach;
             if (i >= argc - 1)
             {
                 fprintf(stderr, "Missing argument to %s\n", argv[i]);
@@ -156,13 +181,21 @@ static std::string create_command(const std::vector<std::string>& exe_pieces, co
     bool contains_placement = false;
     for (size_t i = 0; i < exe_pieces.size(); i++)
     {
-        if (exe_pieces.at(i) == "$*")  // Look for placement parameter
+        const string piece = exe_pieces.at(i);
+        if (piece == "$*")  // Look for placement parameter
         {
             contains_placement = true;
             command += " " + paths_param;
         }
+        else if (piece.length() == 2 && piece[0] == '$')
+        {
+            contains_placement = true;
+            size_t param_num = piece[1] - '0';
+            if (param_num <= paths_param.length())
+                command += " \"" + boost::filesystem::canonical(paths.at(param_num - 1)).string() + "\" ";
+        }
         else
-            command += " \"" + exe_pieces.at(i) + "\" ";
+            command += " \"" + piece + "\" ";
     }
     // If placement parameter is not specified, put the matched paths at the end
     if (!contains_placement)
@@ -172,6 +205,13 @@ static std::string create_command(const std::vector<std::string>& exe_pieces, co
     command = "\"" + command + "\"";    // cmd gets really confused about spaces and quotations
     #endif
     return command;
+}
+
+static std::string create_command_single(const std::vector<std::string>& exe_pieces, const boost::filesystem::path& path)
+{
+    std::vector<boost::filesystem::path> paths;
+    paths.push_back(path);
+    return create_command(exe_pieces, paths);
 }
 
 int main(int argc, char** argv)
@@ -189,18 +229,29 @@ int main(int argc, char** argv)
     // Figure out what callback to call on match
     function<void(const boost::filesystem::path&)> match_callback = matched_plain_printer;
     vector<boost::filesystem::path> matched_paths;
-    if (options.exec_mode == Options::ExecAll)
+    if (options.exec_mode == Options::ExecAll || options.exec_mode == Options::ExecEach)
         match_callback = std::bind(&matched_vector_pusher, std::ref(matched_paths), _1);
 
     find_files(root, matcher, match_callback);
 
-    if (options.exec_mode == Options::ExecAll && options.exec_command.size() && matched_paths.size())
+    if (options.exec_command.size() && matched_paths.size())
     {
-        const std::string command = create_command(options.exec_command, matched_paths);
-        #if 0
-        printf("Executing:\n%s\n", command.c_str());
-        #endif
-        system(command.c_str());
+        if (options.exec_mode == Options::ExecAll)
+        {
+            const std::string command = create_command(options.exec_command, matched_paths);
+            #if 0
+            printf("Executing:\n%s\n", command.c_str());
+            #endif
+            system(command.c_str());
+        }
+        else if (options.exec_mode == Options::ExecEach)
+        {
+            for (size_t i = 0; i < matched_paths.size(); i++)
+            {
+                const std::string command = create_command_single(options.exec_command, matched_paths.at(i));
+                system(command.c_str());
+            }
+        }
     }
 
     return 0;
